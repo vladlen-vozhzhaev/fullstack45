@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Страница контакты</title>
+</head>
+<body>
+    <h1>Контакты</h1>
+    <a href="/public">Главная</a>
+    <div>
+        <form onsubmit="sendForm(this); return false;" action="/handler-form" method="post">
+            <p>
+                <label for="">Имя: </label>
+                <input name="username" type="text" placeholder="Ваше имя">
+            </p>
+            <p>
+                <label for="">Сообщение: </label>
+                <textarea name="message" id="" cols="30" rows="10" placeholder="Сообщение"></textarea>
+            </p>
+            <input type="submit">
+        </form>
+        <p id="info"></p>
+    </div>
+</body>
+<script>
+    const info = document.getElementById('info');
+    function sendForm(form){
+        let formData = new FormData(form);
+        fetch('/handler-form', {
+            method: 'post',
+            body: formData
+        }).then(response=>response.text())
+            .then(result=>{
+                info.innerText = result;
+            })
+    }
+</script>
+</html>
