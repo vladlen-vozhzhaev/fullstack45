@@ -1,11 +1,11 @@
 <h1 class="text-center my-3">Добавление статьи</h1>
 <div class="col-sm-8 mx-auto">
-    <form action="/addArticle" method="post">
+    <form action="/addArticle" onsubmit="sendForm(this); return false;" method="post">
         <div class="mb-3">
             <input name="title" type="text" class="form-control" placeholder="Заголовок статьи">
         </div>
         <div class="mb-3">
-            <textarea name="content" class="form-control" placeholder="Текст статьи"></textarea>
+            <textarea id="sample" class="form-control" placeholder="Текст статьи"></textarea>
         </div>
         <div class="mb-3">
             <input name="author" type="text" class="form-control" placeholder="Автор">
@@ -15,3 +15,43 @@
         </div>
     </form>
 </div>
+<link href="https://cdn.jsdelivr.net/npm/suneditor@latest/dist/css/suneditor.min.css" rel="stylesheet">
+<!-- <link href="https://cdn.jsdelivr.net/npm/suneditor@latest/assets/css/suneditor.css" rel="stylesheet"> -->
+<!-- <link href="https://cdn.jsdelivr.net/npm/suneditor@latest/assets/css/suneditor-contents.css" rel="stylesheet"> -->
+<script src="https://cdn.jsdelivr.net/npm/suneditor@latest/dist/suneditor.min.js"></script>
+<!-- languages (Basic Language: English/en) -->
+<script src="https://cdn.jsdelivr.net/npm/suneditor@latest/src/lang/ru.js"></script>
+<script>
+    const editor = SUNEDITOR.create((document.getElementById('sample') || 'sample'),{
+        height: "500px",
+        lang: SUNEDITOR_LANG['ru'],
+        buttonList: [
+            [
+                'undo', 'redo',
+                'font', 'fontSize', 'formatBlock',
+                'paragraphStyle', 'blockquote',
+                'bold', 'underline', 'italic', 'strike', 'subscript', 'superscript',
+                'fontColor', 'hiliteColor', 'textStyle',
+                'removeFormat',
+                'outdent', 'indent',
+                'align', 'horizontalRule', 'list', 'lineHeight',
+                'table', 'link', 'image', 'video', 'audio', /** 'math', */ // You must add the 'katex' library at options to use the 'math' plugin.
+                /** 'imageGallery', */ // You must add the "imageGalleryUrl".
+                'fullScreen', 'showBlocks', 'codeView',
+                'preview', 'print', 'save', 'template',
+                /** 'dir', 'dir_ltr', 'dir_rtl' */ // "dir": Toggle text direction, "dir_ltr": Right to Left, "dir_rtl": Left to Right
+            ]
+        ]
+    });
+    function sendForm(form){
+        const formData = new FormData(form);
+        formData.append("content", editor.getContents());
+        fetch("/addArticle", {
+            method: "POST",
+            body: formData,
+        }).then(response=>response.text())
+                .then(result=>{
+                   //document.write(result);
+                });
+    }
+</script>
