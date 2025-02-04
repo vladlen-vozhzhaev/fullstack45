@@ -1,4 +1,8 @@
 const express = require('express')
+const session = require('express-session');
+const bcrypt = require('bcryptjs');
+const passport = require('passport');
+const LocalStrategy = require('passport-local');
 const mysql = require('mysql2');
 const { engine } = require('express-handlebars');
 const multer  = require('multer')
@@ -17,6 +21,20 @@ app.use(bodyParser.urlencoded({ extended: false }))
 
 // parse application/json
 app.use(bodyParser.json())
+app.use(session({secret: 'testSecretKey'}));
+app.use(passport.initialize());
+app.use(passport.session());
+passport.serializeUser((user, done)=>{
+    done(null, user.id);
+})
+
+passport.deserializeUser((id, done)=>{
+    query('SELECT * FROM users WHERE id = ?', [id], (err, results)=>{
+        if (err) throw err;
+        done(null, results[0]);
+    });
+})
+
 const urlencodedParser = bodyParser.urlencoded({ extended: false })
 const hbs = engine({
     // Specify helpers which are only registered on this instance.
@@ -49,10 +67,23 @@ function updateDB(sql, params, callback){ // Что-то меняет в бд
     connectDB().query(sql, params, callback);
 }
 
-function query(){ // Что-то читает из бд
-    connectDB();
+function query(sql, params, callback){ // Что-то читает из бд
+    connectDB().query(sql, params, callback);
 }
 
+passport.use(new LocalStrategy(function verify(username, password, done) {
+    console.log("call verify")
+    query('SELECT * FROM users WHERE login = ?', [ username ], function(err, row) {
+        if (err) { return done(err); }
+        if (!row) { return done(null, false, { message: 'Incorrect username or password.' }); }
+
+        bcrypt.compare(password, row[0].pass, (err, isMatch)=>{
+            if (err) throw err;
+            if(isMatch) return done(null, row[0]);
+            else return done(null, false, {message: "Incorrect password"});
+        });
+    });
+}));
 
 
 app.use(express.static("public"))
@@ -71,15 +102,40 @@ app.get("/", (req, res)=> {
             }});
     })
 });
-app.get("/post/:id", (req, res)=>{
-    connection.connect(err => {
-        if (err) {
-            console.log("Ошибка подключения", err);
-        } else {
-            console.log("Успешно подключено к БД");
-        }
+app.get('/register', (req, res)=>{
+    res.render('register');
+});
+app.post('/register', (req, res)=>{
+    const {login, pass, name, lastname} = req.body;
+
+    bcrypt.hash(pass, 10, (err, hash)=>{
+        if(err) throw err;
+        updateDB("INSERT INTO users (name, lastname, login, pass) VALUES (?,?,?,?)", [name, lastname, login, hash], (err)=>{
+            if(err) throw err;
+            res.redirect('/login');
+        })
     })
-    connection.query(`SELECT * FROM articles WHERE id = '${req.params.id}'`, (err, result) => {
+});
+app.get('/login', (req, res)=>{
+    res.render('login');
+});
+app.post('/login', passport.authenticate('local', {
+    successReturnToOrRedirect: '/profile',
+    failureRedirect: '/login',
+    failureMessage: true
+}));
+app.get('/profile', (req, res)=>{
+    if (!req.isAuthenticated()) return res.redirect("/login");
+    res.render('profile', {user: req.user});
+});
+app.get('/logout', (req, res, next)=>{
+    req.logout(function(err) {
+        if (err) { return next(err); }
+        res.redirect('/');
+    });
+});
+app.get("/post/:id", (req, res)=>{
+    query(`SELECT * FROM articles WHERE id = ?`,[req.params.id], (err, result) => {
         result = result[0];
         res.render('post', {result});
     })
@@ -123,4 +179,7 @@ app.post("/addArticle", upload.any(), (req, res)=>{
     });
 })
 
-app.listen(3000);
+const PORT = 3000;
+app.listen(PORT, ()=>{
+    console.log(`SERVER started on http://localhost:${PORT}}`);
+});
